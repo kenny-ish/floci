@@ -7,7 +7,9 @@ import io.github.hectorvent.floci.core.common.XmlParser;
 import io.github.hectorvent.floci.services.cloudfront.model.*;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.jboss.logging.Logger;
 
 import javax.xml.stream.XMLStreamConstants;
@@ -62,11 +64,11 @@ public class CloudFrontController {
 
     @POST
     @Path("/distribution")
-    public Response createDistribution(@QueryParam("WithTags") String withTags, String body) {
+    public Response createDistribution(@Context UriInfo uriInfo, String body) {
         try {
             DistributionConfig config = parseDistributionConfig(body);
             Map<String, String> tags = new LinkedHashMap<>();
-            if (withTags != null) {
+            if (hasFlag(uriInfo, "WithTags")) {
                 tags = parseTags(body);
             }
             Distribution dist = new Distribution();
@@ -3814,5 +3816,19 @@ public class CloudFrontController {
             }
         }
         return tags;
+    }
+
+    /** JAX-RS drops a query parameter without a value, so a flag such as {@code ?WithTags} is read raw. */
+    private static boolean hasFlag(UriInfo uriInfo, String name) {
+        String query = uriInfo == null ? null : uriInfo.getRequestUri().getRawQuery();
+        if (query == null) {
+            return false;
+        }
+        for (String pair : query.split("&")) {
+            if (pair.equals(name) || pair.startsWith(name + "=")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

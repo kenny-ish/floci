@@ -84,6 +84,47 @@ class CloudFrontManagementProtocolTest {
     }
 
     @Test
+    void createDistributionWithTagsListsTheTagsOnTheDistributionArn() {
+        String body = """
+                <DistributionConfigWithTags xmlns="http://cloudfront.amazonaws.com/doc/2020-05-31/">
+                  <DistributionConfig>
+                    <CallerReference>%s</CallerReference>
+                    <Comment>tags-test</Comment>
+                    <Enabled>false</Enabled>
+                    <Origins><Quantity>1</Quantity><Items><Origin>
+                      <Id>origin-tags</Id><DomainName>example.com</DomainName>
+                      <CustomOriginConfig><HTTPPort>80</HTTPPort><HTTPSPort>443</HTTPSPort>
+                        <OriginProtocolPolicy>http-only</OriginProtocolPolicy></CustomOriginConfig>
+                    </Origin></Items></Origins>
+                    <DefaultCacheBehavior>
+                      <TargetOriginId>origin-tags</TargetOriginId>
+                      <ViewerProtocolPolicy>allow-all</ViewerProtocolPolicy>
+                    </DefaultCacheBehavior>
+                  </DistributionConfig>
+                  <Tags><Items><Tag><Key>env</Key><Value>dev</Value></Tag></Items></Tags>
+                </DistributionConfigWithTags>
+                """.formatted("tags-" + UUID.randomUUID());
+
+        String created = given()
+            .contentType("application/xml")
+            .body(body)
+        .when()
+            .post(API + "distribution?WithTags")
+        .then()
+            .statusCode(201)
+            .extract().asString();
+
+        given()
+            .queryParam("Resource", XmlParser.extractFirst(created, "ARN", null))
+        .when()
+            .get(API + "tagging")
+        .then()
+            .statusCode(200)
+            .body(hasXPath("//*[local-name()='Tag']/*[local-name()='Key']/text()", equalTo("env")))
+            .body(hasXPath("//*[local-name()='Tag']/*[local-name()='Value']/text()", equalTo("dev")));
+    }
+
+    @Test
     void responseHeadersPolicyListRejectsNonModeledTypeCasing() {
         given()
             .queryParam("Type", "MANAGED")

@@ -340,6 +340,20 @@ class CloudFrontServiceTest {
     }
 
     @Test
+    void deletingADistributionDropsTheTagsOnItsArn() {
+        CloudFrontService service = serviceWithDomainSuffix(DEFAULT_DOMAIN_SUFFIX);
+        Distribution deleted = service.createDistribution(new Distribution(), Map.of("env", "dev"));
+        Distribution removed = service.createDistribution(new Distribution(), Map.of("env", "dev"));
+        service.tagResource(deleted.getArn(), Map.of("team", "web"));
+
+        service.deleteDistribution(deleted.getId(), deleted.getEtag());
+        service.removeDistribution(removed.getId());
+
+        assertTrue(service.listTagsForResource(deleted.getArn()).isEmpty());
+        assertTrue(service.listTagsForResource(removed.getArn()).isEmpty());
+    }
+
+    @Test
     void createPublicKeyIssuesAnAwsShapedId() throws Exception {
         CloudFrontService service = serviceWithDomainSuffix(DEFAULT_DOMAIN_SUFFIX);
 
